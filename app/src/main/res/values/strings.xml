@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Lumen X</string>
+    <string name="developer_name">BlueFluteX</string>
+    <string name="privacy_policy_url">https://blueflutex.gt.tc/privacy-policy.html</string>
 </resources>

@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -30,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vikasshelar.lumenx.core.designsystem.GlassSurface
 import com.vikasshelar.lumenx.core.designsystem.LumenBackground
 import com.vikasshelar.lumenx.core.designsystem.LumenColors
+import com.vikasshelar.lumenx.core.model.AppPublisher
 
 @Composable
 fun SettingsRoute(
@@ -55,6 +57,8 @@ fun SettingsScreen(
     onSoundChange: (Boolean) -> Unit,
     onThemeChange: (AppTheme) -> Unit,
 ) {
+    val uriHandler = LocalUriHandler.current
+
     LumenBackground(isIlluminated = false) {
         Column(
             modifier = Modifier
@@ -136,6 +140,38 @@ fun SettingsScreen(
                         text = "Intensity is enabled only when Android exposes real LED strength levels. Screen brightness is never used as a flashlight substitute.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = LumenColors.Steel,
+                    )
+                }
+            }
+
+            GlassSurface(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = "Developer",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = LumenColors.Mist,
+                    )
+                    Text(
+                        text = AppPublisher.DeveloperName,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = LumenColors.Steel,
+                    )
+                    TextButton(
+                        onClick = { uriHandler.openUri(AppPublisher.PrivacyPolicyUrl) },
+                    ) {
+                        Text(
+                            text = "Privacy policy",
+                            color = LumenColors.Beam,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                    Text(
+                        text = AppPublisher.PrivacyPolicyUrl,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = LumenColors.Muted,
                     )
                 }
             }
