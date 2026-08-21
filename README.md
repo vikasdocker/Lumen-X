@@ -13,7 +13,7 @@ Lumen X is a premium Android flashlight foundation built with Kotlin, Jetpack Co
 - Drag-reactive physical device stage with press/tilt microinteractions and adaptive portrait/landscape layouts.
 - Renderer-neutral flashlight visual architecture prepared for real 3D model integration.
 - Premium radial intensity control with LOW/MEDIUM/HIGH labels and current intensity percentage.
-- BEAM/STROBE/SOS/BEACON mode selector with clear live-hardware versus visual-preview labeling.
+- BEAM/STROBE/SOS/BEACON/SIGNAL/MORSE/CUSTOM mode selector backed by a scalable mode engine.
 - Physical-feeling animated power actuator, glow transition, brightness transition, mode selector, timer, battery indicator, haptic cues, and tone-based sound feedback architecture.
 - Timer shutdown logic that turns off the real torch when the countdown completes.
 
@@ -31,8 +31,8 @@ core/
   model/         Immutable torch, capability, error, and mode models
   ui/            Battery state and feedback utilities
 feature/
-  flashlight/    Main screen, ViewModel, UI state, visual abstraction, feedback orchestration
-  modes/         Mode reducer and selector UI
+  flashlight/    Main screen, ViewModel, UI state, visual abstraction, mode engine orchestration
+  modes/         Mode metadata, timing patterns, Morse conversion, reducer, and selector UI
   settings/      DataStore repository and settings screen
   timer/         Timer state machine and timer UI
 assets/
@@ -50,7 +50,9 @@ Lumen X never fakes flashlight intensity. Screen brightness is not used as a sub
 
 Brightness control is enabled only when Android reports `FLASH_INFO_STRENGTH_MAXIMUM_LEVEL > 1` and the device supports `CameraManager.turnOnTorchWithStrengthLevel`. Devices without strength support still get real torch ON/OFF through `CameraManager.setTorchMode`, with the radial intensity control disabled.
 
-Only BEAM is fully wired to live flashlight behavior in this first version. STROBE, SOS, and BEACON are clearly marked as visual previews until a hardware-safe pattern engine is added.
+The mode engine keeps timing logic out of the UI. BEAM uses continuous hardware torch output. STROBE, SOS, BEACON, SIGNAL, MORSE, and CUSTOM run through a common `FlashMode` contract with lifecycle start/stop behavior and safety-clamped timing defaults.
+
+Active modes are stopped when the user turns power off, another mode starts, a timer expires, the app leaves the foreground, or the flashlight becomes unavailable. The engine uses structured coroutine cancellation so timing jobs do not leak.
 
 Handled hardware cases include no flash unit, camera service errors, camera in use, camera policy disabled, security denial, unsupported strength, and torch unavailable callbacks.
 
@@ -98,6 +100,8 @@ Unit coverage currently includes:
 
 - Torch capability bounds and unavailable state.
 - Flashlight ViewModel ON/OFF persistence and unsupported brightness behavior.
+- Flash mode engine transitions.
+- SOS, Morse, strobe, and beacon timing behavior.
 - Mode reducer state transitions.
 - Timer arm/tick/cancel behavior.
 
@@ -111,7 +115,7 @@ Compose UI test coverage currently includes:
 ## Roadmap
 
 - Replace the Compose placeholder with a real 3D flashlight asset.
-- Add a hardware-safe pattern engine for STROBE, SOS, BEACON, and custom flash labs.
+- Add UI editors for MORSE text, SIGNAL programs, and CUSTOM user-created flash patterns.
 - Add emergency affordances with explicit user confirmation and device capability checks.
 - Add deeper lifecycle policies for background torch behavior.
 - Add visual polish passes for tablets, foldables, landscape, and dynamic color opt-in.

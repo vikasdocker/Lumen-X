@@ -11,6 +11,7 @@ data class FlashlightUiState(
     val brightnessLevel: Int = 1,
     val maxBrightnessLevel: Int = 1,
     val selectedMode: FlashlightMode = FlashlightMode.Beam,
+    val activeMode: FlashlightMode? = null,
     val countdownState: CountdownState = CountdownState(),
     val errorMessage: String? = null,
     val hapticsEnabled: Boolean = true,
@@ -33,6 +34,10 @@ data class FlashlightUiState(
                 .toInt()
                 .coerceIn(0, 100)
         }
+
+    val isModeActive: Boolean = activeMode != null
+
+    val isPowerEngaged: Boolean = isTorchOn || isModeActive
 }
 
 enum class FlashlightHardwareStatus {

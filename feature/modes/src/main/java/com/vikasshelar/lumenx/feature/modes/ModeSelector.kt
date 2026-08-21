@@ -181,6 +181,31 @@ private fun ModeGlyph(
                 drawCircle(color.copy(alpha = 0.26f), size.height * 0.45f, Offset(size.width * 0.5f, size.height / 2f), style = Stroke(stroke))
                 drawCircle(color, size.height * 0.18f, Offset(size.width * 0.5f, size.height / 2f))
             }
+            FlashlightMode.Signal -> {
+                drawCircle(color.copy(alpha = 0.18f), size.height * 0.45f, Offset(size.width * 0.18f, size.height / 2f), style = Stroke(stroke))
+                drawCircle(color, size.height * 0.12f, Offset(size.width * 0.18f, size.height / 2f))
+                drawLine(color, Offset(size.width * 0.34f, size.height / 2f), Offset(size.width * 0.58f, size.height / 2f), strokeWidth = stroke)
+                drawCircle(color.copy(alpha = 0.18f), size.height * 0.45f, Offset(size.width * 0.74f, size.height / 2f), style = Stroke(stroke))
+                drawCircle(color, size.height * 0.12f, Offset(size.width * 0.74f, size.height / 2f))
+            }
+            FlashlightMode.Morse -> {
+                val dotRadius = size.height * 0.12f
+                drawCircle(color, dotRadius, Offset(size.width * 0.08f, size.height / 2f))
+                drawLine(color, Offset(size.width * 0.2f, size.height / 2f), Offset(size.width * 0.38f, size.height / 2f), strokeWidth = stroke)
+                drawCircle(color, dotRadius, Offset(size.width * 0.5f, size.height / 2f))
+                drawLine(color, Offset(size.width * 0.62f, size.height / 2f), Offset(size.width * 0.84f, size.height / 2f), strokeWidth = stroke)
+            }
+            FlashlightMode.Custom -> {
+                repeat(5) { index ->
+                    val left = index * size.width / 5f
+                    val heightFraction = if (index % 2 == 0) 0.7f else 0.32f
+                    drawRect(
+                        color = color.copy(alpha = 0.42f + index * 0.1f),
+                        topLeft = Offset(left, size.height * (1f - heightFraction) / 2f),
+                        size = Size(size.width / 8f, size.height * heightFraction),
+                    )
+                }
+            }
         }
     }
 }
@@ -191,4 +216,7 @@ private val FlashlightMode.accentColor: Color
         FlashlightMode.Strobe -> LumenColors.Signal
         FlashlightMode.Sos -> LumenColors.BeamHot
         FlashlightMode.Beacon -> LumenColors.Cyan
+        FlashlightMode.Signal -> Color(0xFFB6FF6D)
+        FlashlightMode.Morse -> Color(0xFFFFD166)
+        FlashlightMode.Custom -> Color(0xFFE4C1FF)
     }

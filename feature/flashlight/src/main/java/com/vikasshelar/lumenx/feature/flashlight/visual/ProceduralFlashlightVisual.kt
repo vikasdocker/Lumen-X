@@ -227,6 +227,9 @@ private val FlashlightMode.accentColor: Color
         FlashlightMode.Strobe -> LumenColors.Signal
         FlashlightMode.Sos -> LumenColors.BeamHot
         FlashlightMode.Beacon -> LumenColors.Cyan
+        FlashlightMode.Signal -> Color(0xFFB6FF6D)
+        FlashlightMode.Morse -> Color(0xFFFFD166)
+        FlashlightMode.Custom -> Color(0xFFE4C1FF)
     }
 
 private fun Float.toRadians(): Float = (this * Math.PI / 180f).toFloat()

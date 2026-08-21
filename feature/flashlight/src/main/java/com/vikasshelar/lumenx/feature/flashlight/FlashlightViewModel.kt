@@ -10,6 +10,9 @@ import com.vikasshelar.lumenx.core.model.TorchSnapshot
 import com.vikasshelar.lumenx.core.ui.feedback.FeedbackCue
 import com.vikasshelar.lumenx.core.ui.feedback.HapticCue
 import com.vikasshelar.lumenx.core.ui.feedback.SoundCue
+import com.vikasshelar.lumenx.feature.flashlight.engine.FlashModeEngine
+import com.vikasshelar.lumenx.feature.flashlight.engine.FlashModeEngineState
+import com.vikasshelar.lumenx.feature.flashlight.engine.FlashModeStartResult
 import com.vikasshelar.lumenx.feature.settings.SettingsRepository
 import com.vikasshelar.lumenx.feature.settings.UserSettings
 import com.vikasshelar.lumenx.feature.timer.CountdownState
@@ -35,6 +38,10 @@ class FlashlightViewModel @Inject constructor(
 ) : ViewModel() {
     private val timerStateMachine = TimerStateMachine()
     private val countdownState = MutableStateFlow(CountdownState())
+    private val modeEngine = FlashModeEngine(
+        flashlightController = flashlightController,
+        scope = viewModelScope,
+    )
     private var timerJob: Job? = null
 
     private val mutableFeedback = MutableSharedFlow<FeedbackCue>(extraBufferCapacity = 8)
@@ -44,8 +51,9 @@ class FlashlightViewModel @Inject constructor(
         flashlightController.observeTorchState(),
         settingsRepository.settings,
         countdownState,
-    ) { torchSnapshot, settings, timer ->
-        torchSnapshot.toUiState(settings, timer)
+        modeEngine.state,
+    ) { torchSnapshot, settings, timer, modeState ->
+        torchSnapshot.toUiState(settings, timer, modeState)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -60,12 +68,12 @@ class FlashlightViewModel @Inject constructor(
                 startTimer(settings.timerSeconds)
             }
             if (settings.lastTorchEnabled && capability.isAvailable) {
-                val result = if (capability.supportsStrength) {
-                    flashlightController.setBrightnessLevel(settings.brightnessLevel)
-                } else {
-                    flashlightController.setTorchEnabled(true)
-                }
-                if (result is TorchCommandResult.Failure) {
+                val result = modeEngine.startMode(
+                    mode = settings.selectedMode,
+                    brightnessLevel = settings.brightnessLevel,
+                    useHardwareBrightness = capability.supportsStrength,
+                )
+                if (result is FlashModeStartResult.Failed) {
                     settingsRepository.setLastTorchEnabled(false)
                 }
             }
@@ -80,14 +88,19 @@ class FlashlightViewModel @Inject constructor(
                 return@launch
             }
 
-            val enableTorch = !state.isTorchOn
-            val result = if (enableTorch && state.brightnessSupported) {
-                flashlightController.setBrightnessLevel(state.brightnessLevel)
+            val enableTorch = !state.isPowerEngaged
+            val result = if (enableTorch) {
+                modeEngine.startMode(
+                    mode = state.selectedMode,
+                    brightnessLevel = state.brightnessLevel,
+                    useHardwareBrightness = state.brightnessSupported,
+                )
             } else {
-                flashlightController.setTorchEnabled(enableTorch)
+                modeEngine.stopActiveMode()
+                flashlightController.setTorchEnabled(false)
             }
 
-            if (result is TorchCommandResult.Success) {
+            if (result is TorchCommandResult.Success || result is FlashModeStartResult.Started) {
                 settingsRepository.setLastTorchEnabled(enableTorch)
                 emitFeedback(
                     sound = if (enableTorch) SoundCue.PowerOn else SoundCue.PowerOff,
@@ -108,7 +121,17 @@ class FlashlightViewModel @Inject constructor(
                 return@launch
             }
 
-            if (state.isTorchOn) {
+            if (state.isModeActive) {
+                val result = modeEngine.restartActiveMode(
+                    fallbackMode = state.selectedMode,
+                    brightnessLevel = coercedLevel,
+                    useHardwareBrightness = true,
+                )
+                if (result is FlashModeStartResult.Failed) {
+                    emitFeedback(SoundCue.Error, HapticCue.Error)
+                    return@launch
+                }
+            } else if (state.isTorchOn) {
                 val result = flashlightController.setBrightnessLevel(coercedLevel)
                 if (result is TorchCommandResult.Failure) {
                     emitFeedback(SoundCue.Error, HapticCue.Error)
@@ -123,7 +146,21 @@ class FlashlightViewModel @Inject constructor(
 
     fun selectMode(mode: FlashlightMode) {
         viewModelScope.launch {
+            val state = uiState.value
             settingsRepository.setSelectedMode(mode)
+            if (state.isPowerEngaged) {
+                val result = modeEngine.startMode(
+                    mode = mode,
+                    brightnessLevel = state.brightnessLevel,
+                    useHardwareBrightness = state.brightnessSupported,
+                )
+                if (result is FlashModeStartResult.Failed) {
+                    settingsRepository.setLastTorchEnabled(false)
+                    emitFeedback(SoundCue.Error, HapticCue.Error)
+                    return@launch
+                }
+                settingsRepository.setLastTorchEnabled(true)
+            }
             emitFeedback(SoundCue.Selection, HapticCue.Selection)
         }
     }
@@ -144,7 +181,19 @@ class FlashlightViewModel @Inject constructor(
 
     override fun onCleared() {
         timerJob?.cancel()
+        modeEngine.cancelActiveMode()
         super.onCleared()
+    }
+
+    fun onAppBackgrounded() {
+        viewModelScope.launch {
+            modeEngine.stopActiveMode()
+            flashlightController.setTorchEnabled(false)
+            settingsRepository.setLastTorchEnabled(false)
+            settingsRepository.setTimerSeconds(0)
+            timerJob?.cancel()
+            countdownState.value = timerStateMachine.cancel()
+        }
     }
 
     private fun startTimer(seconds: Int) {
@@ -157,6 +206,7 @@ class FlashlightViewModel @Inject constructor(
             }
 
             if (countdownState.value.durationSeconds > 0 && countdownState.value.remainingSeconds == 0) {
+                modeEngine.stopActiveMode()
                 flashlightController.setTorchEnabled(false)
                 settingsRepository.setLastTorchEnabled(false)
                 settingsRepository.setTimerSeconds(0)
@@ -169,6 +219,7 @@ class FlashlightViewModel @Inject constructor(
     private fun TorchSnapshot.toUiState(
         settings: UserSettings,
         timer: CountdownState,
+        modeState: FlashModeEngineState,
     ): FlashlightUiState {
         val available = capability.isAvailable
         val maxLevel = capability.safeMaxStrengthLevel
@@ -190,6 +241,7 @@ class FlashlightViewModel @Inject constructor(
             brightnessLevel = brightness,
             maxBrightnessLevel = maxLevel,
             selectedMode = settings.selectedMode,
+            activeMode = modeState.activeMode,
             countdownState = timer,
             errorMessage = error?.userMessage,
             hapticsEnabled = settings.hapticsEnabled,

@@ -5,6 +5,7 @@ import com.vikasshelar.lumenx.core.model.FlashlightMode
 data class FlashlightVisualState(
     val isPowered: Boolean,
     val powerFraction: Float,
+    val hardwarePowerFraction: Float = powerFraction,
     val brightnessFraction: Float,
     val mode: FlashlightMode,
     val interaction: FlashlightInteractionState = FlashlightInteractionState(),
@@ -17,17 +18,20 @@ data class FlashlightVisualState(
         fun from(
             isPowered: Boolean,
             powerFraction: Float,
+            hardwarePowerFraction: Float = powerFraction,
             brightnessFraction: Float,
             mode: FlashlightMode,
             interaction: FlashlightInteractionState = FlashlightInteractionState(),
         ): FlashlightVisualState {
             val normalizedPower = powerFraction.unit()
+            val normalizedHardwarePower = hardwarePowerFraction.unit()
             val normalizedBrightness = brightnessFraction.unit()
-            val liveGlow = normalizedPower * normalizedBrightness.coerceAtLeast(0.24f)
+            val liveGlow = normalizedHardwarePower * normalizedBrightness.coerceAtLeast(0.24f)
 
             return FlashlightVisualState(
                 isPowered = isPowered,
                 powerFraction = normalizedPower,
+                hardwarePowerFraction = normalizedHardwarePower,
                 brightnessFraction = normalizedBrightness,
                 mode = mode,
                 interaction = interaction,

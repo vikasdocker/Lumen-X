@@ -47,6 +47,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -73,7 +74,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.vikasshelar.lumenx.core.designsystem.GlassSurface
 import com.vikasshelar.lumenx.core.designsystem.LumenBackground
 import com.vikasshelar.lumenx.core.designsystem.LumenColors
@@ -100,6 +104,7 @@ fun FlashlightRoute(
     val latestState by rememberUpdatedState(state)
     val hapticFeedback = LocalHapticFeedback.current
     val soundFeedback = rememberSoundFeedbackPlayer()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
     LaunchedEffect(viewModel) {
         viewModel.feedback.collect { cue ->
@@ -109,6 +114,17 @@ fun FlashlightRoute(
             if (latestState.hapticsEnabled) {
                 hapticFeedback.performHapticFeedback(cue.toHapticType())
             }
+        }
+    }
+    DisposableEffect(lifecycleOwner, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                viewModel.onAppBackgrounded()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -367,12 +383,20 @@ private fun DeviceStage(
     var isTouching by remember { mutableStateOf(false) }
 
     val powerFraction by animateFloatAsState(
-        targetValue = if (state.isTorchOn) 1f else 0f,
+        targetValue = if (state.isPowerEngaged) 1f else 0f,
         animationSpec = tween(
             durationMillis = scaledDuration(460, motionScale),
             easing = FastOutSlowInEasing,
         ),
         label = "powerFraction",
+    )
+    val hardwarePowerFraction by animateFloatAsState(
+        targetValue = if (state.isTorchOn) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = scaledDuration(180, motionScale),
+            easing = FastOutSlowInEasing,
+        ),
+        label = "hardwarePowerFraction",
     )
     val brightnessFraction by animateFloatAsState(
         targetValue = state.brightnessFraction,
@@ -411,8 +435,9 @@ private fun DeviceStage(
         parallaxY = animatedDragY / 7f,
     )
     val visualState = FlashlightVisualState.from(
-        isPowered = state.isTorchOn,
+        isPowered = state.isPowerEngaged,
         powerFraction = powerFraction,
+        hardwarePowerFraction = hardwarePowerFraction,
         brightnessFraction = brightnessFraction,
         mode = state.selectedMode,
         interaction = visualInteraction,
@@ -463,7 +488,7 @@ private fun DeviceStage(
 
             PowerActuator(
                 enabled = state.isTorchAvailable,
-                isOn = state.isTorchOn,
+                isOn = state.isPowerEngaged,
                 onClick = onToggleTorch,
                 modifier = Modifier
                     .align(Alignment.Center)

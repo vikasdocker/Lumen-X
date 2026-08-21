@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -45,11 +45,14 @@ class FlashlightViewModelTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
 
         viewModel.toggleTorch()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(listOf(4), controller.brightnessCalls)
         assertTrue(settings.current.lastTorchEnabled)
         assertTrue(viewModel.uiState.value.isTorchOn)
+
+        viewModel.toggleTorch()
+        runCurrent()
     }
 
     @Test
@@ -69,7 +72,7 @@ class FlashlightViewModelTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
 
         viewModel.setBrightnessLevel(5)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(controller.brightnessCalls.isEmpty())
         assertEquals(1, settings.current.brightnessLevel)
@@ -86,7 +89,7 @@ class FlashlightViewModelTest {
         )
         val viewModel = FlashlightViewModel(controller, FakeSettingsRepository())
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(FlashlightHardwareStatus.Unavailable, viewModel.uiState.value.hardwareStatus)
         assertEquals("This device does not expose a hardware flash unit.", viewModel.uiState.value.errorMessage)
