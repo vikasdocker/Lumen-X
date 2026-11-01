@@ -3,7 +3,7 @@
 Lumen X is a premium Android flashlight foundation built with Kotlin, Jetpack Compose, MVVM, Hilt, Navigation Compose, DataStore, Coroutines/Flow, and Android Camera2 flashlight APIs. The first version focuses on a cinematic single-device experience rather than a generic utility dashboard.
 
 Developer account: BlueFluteX  
-Privacy policy: [https://blueflutex.gt.tc/privacy-policy.html](https://blueflutex.gt.tc/privacy-policy.html)
+Privacy policy: [https://blueflutex.in/privacy-policy.html](https://blueflutex.in/privacy-policy.html)
 
 ## Current Functionality
 
